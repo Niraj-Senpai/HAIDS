@@ -199,7 +199,6 @@ def gen_frames():
     if case == 'vehicle':
         if car_crash_model is None:
             print('Loading YOLOv8 model for Car Crash Detection...')
-            import os
             car_crash_model = YOLO(os.path.join(os.path.dirname(__file__), 'models/i1-yolov8s.pt'))
         tracker = Sort(max_age=20, min_hits=3, iou_threshold=0.3)
         totalAccidents = []
@@ -218,25 +217,29 @@ def gen_frames():
             # We can't easily write all 80 names here, but we can assume it was downloaded
             pass
 
-    if net_dnn is None:
-        print("Loading network...")
-        net_dnn = cv2.dnn.readNetFromDarknet(configPath, weightPath)
-        if config.USE_GPU:
-            print("[INFO] Looking for GPU")
-            net_dnn.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
-            net_dnn.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
-        else:
-            net_dnn.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
-            net_dnn.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
-        layer_names = net_dnn.getLayerNames()
-        output_layers = [layer_names[i - 1] for i in net_dnn.getUnconnectedOutLayers()]
-        with open(namesPath, 'r') as f:
-            classes = [line.strip() for line in f.readlines()]
+    if case != 'vehicle' and net_dnn is None:
+        print(f"Loading OpenCV DNN network for mode: {case}...")
+        try:
+            net_dnn = cv2.dnn.readNetFromDarknet(configPath, weightPath)
+            if config.USE_GPU:
+                print("[INFO] Looking for GPU")
+                net_dnn.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+                net_dnn.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+            else:
+                net_dnn.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
+                net_dnn.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
+            layer_names = net_dnn.getLayerNames()
+            output_layers = [layer_names[i - 1] for i in net_dnn.getUnconnectedOutLayers()]
+            with open(namesPath, 'r') as f:
+                classes = [line.strip() for line in f.readlines()]
+        except Exception as e:
+            print(f"Error loading OpenCV DNN: {e}")
+            # If dnn fails, we can still continue if case was not strictly requiring it, 
+            # but usually it is required if case != 'vehicle'
     
     print(f"Loading video from: {video_link}")
     
     url = video_link
-    import os
     if url is not None and os.path.exists(url):
         print(f"Loading local video file: {url}")
         cap = cv2.VideoCapture(url)
@@ -283,20 +286,20 @@ def gen_frames():
 
         if case == 'vehicle':
             results = car_crash_model(frame_read, stream=True)
-            detections_v8 = __import__('numpy').empty((0, 5))
+            detections_v8 = np.empty((0, 5))
             for r in results:
                 boxes = r.boxes
                 for box in boxes:
                     x1, y1, x2, y2 = box.xyxy[0]
                     x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
                     w, h = x2 - x1, y2 - y1
-                    conf = __import__('math').ceil((box.conf[0] * 100)) / 100
+                    conf = math.ceil((box.conf[0] * 100)) / 100
 
                     if conf > 0.4:
                         cvzone.cornerRect(frame_read, (x1, y1, w, h))
                         cvzone.putTextRect(frame_read, f'Accident {conf}', (max(0, x1), max(35, y1)), colorR=(0, 165, 255))
-                        currentArray = __import__('numpy').array([x1, y1, x2, y2, conf])
-                        detections_v8 = __import__('numpy').vstack((detections_v8, currentArray))
+                        currentArray = np.array([x1, y1, x2, y2, conf])
+                        detections_v8 = np.vstack((detections_v8, currentArray))
 
             trackerResults = tracker.update(detections_v8)
 
