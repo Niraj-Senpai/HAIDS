@@ -1,0 +1,12 @@
+Flask
+opencv-python
+numpy
+scipy
+imutils
+yt-dlp
+requests
+schedule
+ultralytics
+cvzone
+filterpy
+pandas
