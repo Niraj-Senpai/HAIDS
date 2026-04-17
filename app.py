@@ -15,6 +15,7 @@ import cvzone
 from modules.sort import Sort
 
 car_crash_model = None
+shoplifting_model = None
 net_dnn = None
 classes = None
 output_layers = None
@@ -194,7 +195,7 @@ def cvDrawBoxes_social(detections, img):
 
 def gen_frames(): 
     global case
-    global net_dnn, classes, output_layers, video_link, car_crash_model
+    global net_dnn, classes, output_layers, video_link, car_crash_model, shoplifting_model
     
     if case == 'vehicle':
         if car_crash_model is None:
@@ -202,6 +203,11 @@ def gen_frames():
             car_crash_model = YOLO(os.path.join(os.path.dirname(__file__), 'models/i1-yolov8s.pt'))
         tracker = Sort(max_age=20, min_hits=3, iou_threshold=0.3)
         totalAccidents = []
+    
+    if case == 'shoplifting':
+        if shoplifting_model is None:
+            print('Loading YOLOv8 model for Shoplifting Detection...')
+            shoplifting_model = YOLO(os.path.join(os.path.dirname(__file__), 'models/shoplifting_v8.pt'))
     configPath = "./cfg/yolov4-tiny.cfg"                                 # Path to cfg
     weightPath = "./yolov4-tiny.weights"                                 # Path to weights
     namesPath = "./cfg/coco.names"                                       # Path to names
@@ -317,6 +323,34 @@ def gen_frames():
                     totalAccidents.append(id)
             
             image = frame_read
+        elif case == 'shoplifting':
+            results = shoplifting_model.predict(frame_read)
+            cc_data = np.array(results[0].boxes.data)
+
+            if len(cc_data) != 0:
+                xywh = np.array(results[0].boxes.xywh).astype("int32")
+                xyxy = np.array(results[0].boxes.xyxy).astype("int32")
+                
+                status = ""
+                # ZIP: (x1, y1, x2, y2), (cx, cy, w, h), (x1, y1, x2, y2, conf, cls)
+                for (x1, y1, _, _), (_, _, w, h), (_, _, _, _, conf, clas) in zip(xyxy, xywh, cc_data):
+                    if clas == 1: # Shoplifting ALERT
+                        # Draw green rectangle (cls1_rect_color from params)
+                        cv2.rectangle(frame_read, (x1, y1), (x1 + w, y1 + h), (0, 255, 0), 2)
+                        
+                        # Draw red circle at top center (as in source)
+                        cx = int(x1 + w // 2)
+                        cv2.circle(frame_read, (cx, y1), 6, (0, 0, 255), 8)
+
+                        # Draw confidence
+                        text = "{}%".format(np.round(conf * 100, 2))
+                        cv2.putText(frame_read, text, (x1 + 10, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+                        status = "Shoplifting"
+                
+                if status:
+                    cv2.putText(frame_read, status, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            
+            image = frame_read
         else:
             # OpenCV DNN detection - uses a 416x416 blob (independent of display resolution)
             blob = cv2.dnn.blobFromImage(frame_read, 1/255.0, (416, 416), (0,0,0), True, crop=False)
@@ -375,7 +409,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         
 @app.route('/')
 def Home():
-    return render_template('Shady.html')
+    return render_template('haids.html')
     
 @app.route('/FallDetection', methods=['GET', 'POST'])
 def FallDetection():
@@ -397,6 +431,12 @@ def VehicleCrashDetection():
     global case
     case = 'vehicle'
     return render_template('VehicleCrashDetection.html')
+
+@app.route('/ShopliftingDetection', methods=['GET', 'POST'])
+def ShopliftingDetection():
+    global case
+    case = 'shoplifting'
+    return render_template('ShopliftingDetection.html')
 
 @app.route('/ContactUs')
 def ContactUs():
