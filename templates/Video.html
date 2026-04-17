@@ -44,6 +44,75 @@
         border-radius: 12px;
         display: block;
     }
+
+    /* Alert Portal Styles */
+    #alert-portal {
+        position: fixed;
+        top: 100px;
+        right: 20px;
+        z-index: 9999;
+        width: 320px;
+    }
+    .alert-card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 15px;
+        padding: 0;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        margin-bottom: 15px;
+        transform: translateX(120%);
+        transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        overflow: hidden;
+    }
+    .alert-card.show {
+        transform: translateX(0);
+    }
+    .alert-header {
+        background: #3A70F0;
+        color: white;
+        padding: 10px 15px;
+        font-weight: 700;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.9rem;
+    }
+    .alert-body {
+        padding: 12px;
+    }
+    .alert-img {
+        width: 100%;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        border: 1px solid #eee;
+    }
+    .alert-msg {
+        font-size: 0.85rem;
+        color: #333;
+        margin-bottom: 10px;
+        font-weight: 500;
+    }
+    .alert-footer {
+        padding: 0 12px 12px 12px;
+        text-align: right;
+    }
+    .btn-dismiss {
+        background: #f4f6f9;
+        border: none;
+        color: #666;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .btn-dismiss:hover {
+        background: #e9ecef;
+        color: #333;
+    }
   </style>
   
   <link rel="stylesheet" href="{{url_for('static',filename='assets/css/custom-theme.css')}}">
@@ -95,6 +164,23 @@
 				<div class="video-container">
 					<img src="{{ url_for('video_feed') }}" class="video-feed">
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Portal -->
+    <div id="alert-portal">
+        <div id="alert-card" class="alert-card">
+            <div class="alert-header">
+                <span id="alert-title">INCIDENT DETECTED</span>
+                <span class="mobi-mbri mobi-mbri-alert mbr-iconfont"></span>
+            </div>
+            <div class="alert-body">
+                <img id="alert-image" src="" class="alert-img">
+                <div id="alert-text" class="alert-msg"></div>
+            </div>
+            <div class="alert-footer">
+                <button class="btn-dismiss" onclick="dismissAlert()">Dismiss</button>
             </div>
         </div>
     </div>
@@ -194,6 +280,61 @@
   <script src="{{url_for('static',filename='assets/touchswipe/jquery.touch-swipe.min.js')}}"></script>
   <script src="{{url_for('static',filename='assets/theme/js/script.js')}}"></script>
   
-  
+  <script>
+    let lastAlertId = 0;
+
+    function playNotificationSound() {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+        oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.5); // A4
+
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.5);
+    }
+
+    function fetchAlerts() {
+        fetch('/get_latest_alert')
+            .then(response => response.json())
+            .then(data => {
+                if (data.id && data.id !== lastAlertId) {
+                    lastAlertId = data.id;
+                    showAlert(data);
+                }
+            })
+            .catch(err => console.error("Error fetching alerts:", err));
+    }
+
+    function showAlert(data) {
+        const card = document.getElementById('alert-card');
+        const img = document.getElementById('alert-image');
+        const text = document.getElementById('alert-text');
+        const title = document.getElementById('alert-title');
+
+        title.innerText = data.module.toUpperCase() + " DETECTED";
+        text.innerText = "Attention: A " + data.module.toLowerCase() + " incident has been identified.";
+        img.src = data.image + "?t=" + new Date().getTime(); // Prevent caching
+
+        card.classList.add('show');
+        playNotificationSound();
+    }
+
+    function dismissAlert() {
+        const card = document.getElementById('alert-card');
+        card.classList.remove('show');
+    }
+
+    // Poll for alerts every 1.5 seconds
+    setInterval(fetchAlerts, 1500);
+  </script>
 </body>
 </html>

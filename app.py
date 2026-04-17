@@ -27,6 +27,46 @@ altNames = None
 video_link = None
 case = None
 
+# Alert System Globals
+current_alert = {"id": 0, "module": "", "image": "", "timestamp": 0}
+last_alert_time = {
+    "fall": 0,
+    "social": 0,
+    "vehicle": 0,
+    "shoplifting": 0
+}
+alert_cooldown = 10 # 10 seconds cooldown
+
+def trigger_alert(module_label, frame):
+    """
+    Saves a screenshot and updates the global alert state.
+    """
+    global current_alert, last_alert_time
+    now = time.time()
+    
+    # Check cooldown for this module
+    if now - last_alert_time.get(module_label.lower(), 0) < alert_cooldown:
+        return
+
+    # Create timestamped filename
+    timestamp_str = time.strftime("%Y%m%d-%H%M%S")
+    filename = f"alert_{module_label.lower()}_{timestamp_str}.jpg"
+    filepath = os.path.join('static/assets/images/alerts', filename)
+    
+    # Save the current frame
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    cv2.imwrite(filepath, frame)
+    
+    # Update state
+    last_alert_time[module_label.lower()] = now
+    current_alert = {
+        "id": int(now * 1000), # Unique ID based on ms
+        "module": module_label,
+        "image": f"/static/assets/images/alerts/{filename}",
+        "timestamp": now
+    }
+    print(f"[ALERT] {module_label} detected! Screenshot saved to {filepath}")
+
 def is_close(p1, p2):
     """
     #================================================================
@@ -113,6 +153,7 @@ def cvDrawBoxes_fall(detections, img):
     	#================================================================= 
         if len(fall_alert_list)!=0:
             text = "Fall Detected"
+            trigger_alert("Fall", img)
         
         else:
             text = "Fall Not Detected"
@@ -184,6 +225,7 @@ def cvDrawBoxes_social(detections, img):
     if len(serious) >= config.Threshold:
         cv2.putText(img, "-ALERT: Violations over limit-", (10, img.shape[0] - 65),
             cv2.FONT_HERSHEY_COMPLEX, 0.8, (0, 0, 255), 2)
+        trigger_alert("Social", img)
         if config.ALERT:
             # Note: Mailer requires setup in mylib/config.py
             print("[INFO] Sending mail...")
@@ -321,6 +363,7 @@ def gen_frames():
                     cx, cy = x1 + w // 2, y1 + h // 2
                     cv2.circle(frame_read, (cx, cy), 5, (255, 0, 255), cv2.FILLED)
                     totalAccidents.append(id)
+                    trigger_alert("Vehicle", frame_read)
             
             image = frame_read
         elif case == 'shoplifting':
@@ -332,6 +375,7 @@ def gen_frames():
                 xyxy = np.array(results[0].boxes.xyxy).astype("int32")
                 
                 status = ""
+                high_conf_shoplifting = False
                 # ZIP: (x1, y1, x2, y2), (cx, cy, w, h), (x1, y1, x2, y2, conf, cls)
                 for (x1, y1, _, _), (_, _, w, h), (_, _, _, _, conf, clas) in zip(xyxy, xywh, cc_data):
                     if clas == 1: # Shoplifting ALERT
@@ -346,9 +390,13 @@ def gen_frames():
                         text = "{}%".format(np.round(conf * 100, 2))
                         cv2.putText(frame_read, text, (x1 + 10, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
                         status = "Shoplifting"
+                        if conf > 0.69:
+                            high_conf_shoplifting = True
                 
                 if status:
                     cv2.putText(frame_read, status, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                    if high_conf_shoplifting:
+                        trigger_alert("Shoplifting", frame_read)
             
             image = frame_read
         else:
@@ -444,7 +492,11 @@ def ContactUs():
     
 @app.route('/Video', methods=['GET', 'POST'])
 def Video():
-    global video_link
+    global video_link, current_alert, last_alert_time
+    # Reset alert state for a new session
+    current_alert = {"id": 0, "module": "", "image": "", "timestamp": 0}
+    last_alert_time = {k: 0 for k in last_alert_time}
+    
     if 'video_file' in request.files and request.files['video_file'].filename != '':
         file = request.files['video_file']
         filename = secure_filename(file.filename)
@@ -458,6 +510,11 @@ def Video():
 @app.route('/video_feed')
 def video_feed():
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/get_latest_alert')
+def get_latest_alert():
+    global current_alert
+    return current_alert
 
 if __name__ == "__main__":
     app.run(debug=True)
