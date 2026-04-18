@@ -25,6 +25,14 @@ MAIL = ''
 USE_GPU = True
 # Define the max/min safe distance limits (in pixels) between 2 people.
 MAX_DISTANCE = 80
-MIN_DISTANCE = 50
+MIN_DISTANCE = 68.5 # Upgraded from 50 for more realistic detection
+# Color Palette (BGR)
+GREEN = (0, 255, 0)
+RED = (0, 0, 255)
+YELLOW = (0, 255, 255)
+WHITE = (255, 255, 255)
+ORANGE = (0, 165, 255)
+BLUE = (255, 0, 0)
+GREY = (192, 192, 192)
 #===============================================================================
 #===============================================================================

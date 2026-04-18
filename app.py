@@ -169,14 +169,13 @@ def cvDrawBoxes_fall(detections, img):
 
 def cvDrawBoxes_social(detections, img):
     """
-    :param:
-    detections = total detections in one frame
-    img = image to draw on
+    Improved Social Distancing Detection Logic
+    Ported from Social-Distancing-Detector-main
     """
     results = []
+    # Identify persons and calculate centroids
     for (label, conf, bbox) in detections:
         if label.decode() == 'person':
-            # bbox is [center_x, center_y, w, h]
             (cX, cY, w, h) = bbox
             startX = int(cX - (w / 2))
             startY = int(cY - (h / 2))
@@ -186,51 +185,63 @@ def cvDrawBoxes_social(detections, img):
 
     serious = set()
     abnormal = set()
-
+    
+    # Calculate pairwise distances
     if len(results) >= 2:
         centroids = np.array([r[2] for r in results])
         D = dist.cdist(centroids, centroids, metric="euclidean")
 
         for i in range(0, D.shape[0]):
             for j in range(i + 1, D.shape[1]):
+                # Draw lines between people in proximity
                 if D[i, j] < config.MIN_DISTANCE:
                     serious.add(i)
                     serious.add(j)
+                    # Connection line for high risk
+                    cv2.line(img, (int(centroids[i][0]), int(centroids[i][1])), 
+                            (int(centroids[j][0]), int(centroids[j][1])), config.YELLOW, 1, cv2.LINE_AA)
+                    cv2.circle(img, (int(centroids[i][0]), int(centroids[i][1])), 3, config.ORANGE, -1, cv2.LINE_AA)
+                    cv2.circle(img, (int(centroids[j][0]), int(centroids[j][1])), 3, config.ORANGE, -1, cv2.LINE_AA)
                 elif D[i, j] < config.MAX_DISTANCE:
                     abnormal.add(i)
                     abnormal.add(j)
 
+    stat_H, stat_L = 0, 0
+    # Render bounding boxes and status labels
     for (i, (prob, bbox, centroid)) in enumerate(results):
         (startX, startY, endX, endY) = bbox
-        (cX, cY) = centroid
-        color = (0, 255, 0)
-
+        
         if i in serious:
-            color = (0, 0, 255) # Red (BGR)
-        elif i in abnormal:
-            color = (0, 255, 255) # Yellow (BGR)
+            color = config.RED
+            label = "unsafe"
+            label_bg = config.WHITE
+            label_text = config.ORANGE
+            stat_H += 1
+            
+            # Draw Person Box (Only for UNSAFE members as requested)
+            cv2.rectangle(img, (startX, startY), (endX, endY), color, 2)
+            
+            # Draw status label above head
+            labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
+            y1label = max(startY, labelSize[1])
+            cv2.rectangle(img, (startX, y1label - labelSize[1]), (startX + labelSize[0], startY + baseLine), label_bg, cv2.FILLED)
+            cv2.putText(img, label, (startX, startY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, label_text, 1, cv2.LINE_AA)
+        else:
+            stat_L += 1
 
-        cv2.rectangle(img, (startX, startY), (endX, endY), color, 2)
-        cv2.circle(img, (cX, cY), 5, color, 2)
+    # Render Stats Dashboard
+    dashboard_w, dashboard_h = 250, 30
+    cv2.rectangle(img, (13, 10), (dashboard_w, dashboard_h + 10), config.GREY, cv2.FILLED)
+    
+    cv2.putText(img, "--", (30, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, config.WHITE, 1, cv2.LINE_AA)
+    cv2.putText(img, f"LOW RISK: {stat_L} people", (60, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, config.BLUE, 1, cv2.LINE_AA)
 
-    # Violation counts
-    text = "Serious: {}".format(len(serious))
-    cv2.putText(img, text, (10, img.shape[0] - 35),
-        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-
-    text1 = "Abnormal: {}".format(len(abnormal))
-    cv2.putText(img, text1, (10, img.shape[0] - 10),
-        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
-
-    if len(serious) >= config.Threshold:
-        cv2.putText(img, "-ALERT: Violations over limit-", (10, img.shape[0] - 65),
-            cv2.FONT_HERSHEY_COMPLEX, 0.8, (0, 0, 255), 2)
-        trigger_alert("Social", img)
-        if config.ALERT:
-            # Note: Mailer requires setup in mylib/config.py
-            print("[INFO] Sending mail...")
+    # Trigger system alerts
+    if stat_H > 0:
+        cv2.putText(img, "Social Distancing Violation", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, config.RED, 2)
+        trigger_alert("Social Distancing", img)
+        if stat_H >= config.Threshold and config.ALERT:
             Mailer().send(config.MAIL)
-            print("[INFO] Mail sent")
             
     return img
     
@@ -408,12 +419,20 @@ def gen_frames():
             class_ids = []
             confidences = []
             boxes = []
+            # Use custom thresholds for specific modules
+            if case == 'fall':
+                conf_thresh = 0.9
+            elif case == 'social':
+                conf_thresh = 0.7
+            else:
+                conf_thresh = 0.6
+            
             for out in outs:
                 for detection in out:
                     scores = detection[5:]
                     class_id = np.argmax(scores)
                     confidence = scores[class_id]
-                    if confidence > 0.25:
+                    if confidence > conf_thresh:
                         # Scale coordinates back to high-resolution frame
                         center_x = int(detection[0] * w_orig)
                         center_y = int(detection[1] * h_orig)
