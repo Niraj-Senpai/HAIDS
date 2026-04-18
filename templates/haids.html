@@ -1,222 +1,150 @@
 <!DOCTYPE html>
-<html  >
+<html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="generator" content="Mobirise v4.9.7, mobirise.com">
-  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-  <link rel="shortcut icon" href="{{url_for('static',filename='assets/images/haids-logo.png')}}" type="image/x-icon">
-  <meta name="description" content="">
-  
-  <title>HAIDS</title>
-  <link rel="stylesheet" href="{{url_for('static',filename='assets/web/assets/mobirise-icons/mobirise-icons.css')}}">
-  <link rel="stylesheet" href="{{url_for('static',filename='assets/web/assets/mobirise-icons-bold/mobirise-icons-bold.css')}}">
-  <link rel="stylesheet" href="{{url_for('static',filename='assets/web/assets/mobirise-icons2/mobirise2.css')}}">
-  <link rel="stylesheet" href="{{url_for('static',filename='assets/tether/tether.min.css')}}">
-  <link rel="stylesheet" href="{{url_for('static',filename='assets/bootstrap/css/bootstrap.min.css')}}">
-  <link rel="stylesheet" href="{{url_for('static',filename='assets/bootstrap/css/bootstrap-grid.min.css')}}">
-  <link rel="stylesheet" href="{{url_for('static',filename='assets/bootstrap/css/bootstrap-reboot.min.css')}}">
-  <link rel="stylesheet" href="{{url_for('static',filename='assets/socicon/css/styles.css')}}">
-  <link rel="stylesheet" href="{{url_for('static',filename='assets/dropdown/css/style.css')}}">
-  <link rel="stylesheet" href="{{url_for('static',filename='assets/theme/css/style.css')}}">
-  <link rel="stylesheet" href="{{url_for('static',filename='assets/mobirise/css/mbr-additional.css')}}" type="text/css">
-  
-  
-  
-  <link rel="stylesheet" href="{{url_for('static',filename='assets/css/custom-theme.css')}}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAIDS | Human Activity and Incident Detection System</title>
+    <link rel="shortcut icon" href="{{url_for('static',filename='assets/images/haids-logo.png')}}" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{url_for('static',filename='assets/css/portal.css')}}">
+    <style>
+        .hero-banner {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=2072') center/cover;
+            position: relative;
+        }
+
+        .hero-banner::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle, rgba(5, 5, 5, 0.4) 0%, rgba(5, 5, 5, 0.95) 100%);
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            max-width: 900px;
+            padding: 0 20px;
+        }
+
+        .hero-title {
+            font-size: 5rem;
+            font-weight: 800;
+            letter-spacing: -2px;
+            margin-bottom: 20px;
+            line-height: 1;
+        }
+
+        .hero-subtitle {
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            margin-bottom: 40px;
+            font-weight: 300;
+        }
+
+        .cta-group {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .btn-premium {
+            padding: 18px 45px;
+            font-size: 1.2rem;
+            border-radius: 40px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-main {
+            background: var(--primary);
+            color: black;
+            box-shadow: 0 10px 30px rgba(0, 210, 255, 0.4);
+        }
+
+        .btn-main:hover {
+            transform: scale(1.05);
+            background: white;
+        }
+
+        .btn-outline {
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: white;
+        }
+    </style>
 </head>
+
 <body>
-  <section class="menu cid-s3MrIgmP7I" once="menu" id="menu1-5">
 
-    
-
-    <nav class="navbar navbar-expand beta-menu navbar-dropdown align-items-center navbar-fixed-top navbar-toggleable-sm">
-        <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-            <div class="hamburger">
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
+    <section class="hero-banner">
+        <nav
+            style="position: absolute; top: 0; width: 100%; padding: 30px 50px; display: flex; justify-content: space-between; align-items: center; z-index: 100;">
+            <div style="display: flex; align-items: center;">
+                <img src="{{url_for('static',filename='assets/images/haids-logo.png')}}" alt="HAIDS Logo"
+                    style="height: 45px; margin-right: 15px;">
+                <span style="font-size: 1.8rem; font-weight: 700; color: white; letter-spacing: 1px;">HAIDS</span>
             </div>
-        </button>
-        <div class="menu-logo">
-            <div class="navbar-brand">
-                <span class="navbar-logo">
-                    <a href="{{ url_for('Home')}}">
-                         <img src="{{url_for('static',filename='assets/images/haids-logo.png')}}" alt="Mobirise" title="" >
-                    </a>
-                </span>
-                
+            <div>
+                <a href="{{ url_for('ContactUs') }}"
+                    style="color: white; margin-left: 30px; text-decoration: none; font-weight: 600;">Contact</a>
+                <a href="https://github.com/Niraj-Senpai/HAIDS" target="_blank"
+                    style="color: white; margin-left: 30px; text-decoration: none; font-weight: 600;"><i
+                        class="fab fa-github"></i></a>
             </div>
-        </div>
-        <div class="collapse navbar-collapse" id="navbarSupportedContent">
-            <ul class="navbar-nav nav-dropdown nav-right" data-app-modern-menu="true"><li class="nav-item">
-                    <a class="nav-link link text-white display-4" href="{{ url_for('Home')}}"><span class="mbrib-home mbr-iconfont mbr-iconfont-btn"></span>
-                        
-                        Home</a>
-                </li><li class="nav-item"><a class="nav-link link text-white display-4" href="{{ url_for('ContactUs')}}"><span class="mobi-mbri mobi-mbri-phone mbr-iconfont mbr-iconfont-btn"></span>
-                        
-                        Contact Us</a></li><li class="nav-item"><a class="nav-link link text-white display-4" href="https://github.com/Niraj-Senpai/HAIDS"><span class="mbrib-github mbr-iconfont mbr-iconfont-btn"></span>
-                        Github</a></li><li class="nav-item"><a class="nav-link link text-white display-4" href="https://mobirise.co">
-                        </a></li></ul>
-            
-        </div>
-    </nav>
-</section>
+        </nav>
 
-<section class="engine"><a href="https://mobirise.info/p">website templates free download</a></section><section class="header12 cid-s3Mrg3sUiE mbr-fullscreen mbr-parallax-background" id="header12-1">
-
-    
-
-    <div class="mbr-overlay" style="opacity: 0.4; background-color: rgb(35, 35, 35);">
-    </div>
-
-    <div class="container mt-5 pt-5 pb-5 custom-features-section">
-
-
-        <div class="row text-left">
-            <!-- Shoplifting Detection -->
-            <div class="col-12 col-md-6 col-lg-3 mb-4 feature-card-container">
-                <div class="icon-wrapper mb-3 shadow-sm">
-                    <span class="mbr-iconfont mbri-shopping-cart text-white"></span>
-                </div>
-                <h5 class="font-weight-bold text-dark mb-2">Shoplifting Detection</h5>
-                <p class="text-muted" style="font-size: 0.9rem;">HAIDS detects potential shoplifting behaviors automatically</p>
-                <a href="{{ url_for('ShopliftingDetection')}}" class="btn btn-outline-primary btn-sm feature-btn mt-3">Try</a>
-            </div>
-
-            <!-- Car Crash Detection -->
-            <div class="col-12 col-md-6 col-lg-3 mb-4 feature-card-container">
-                <div class="icon-wrapper mb-3 shadow-sm">
-                    <span class="mbr-iconfont mbri-delivery text-white"></span>
-                </div>
-                <h5 class="font-weight-bold text-dark mb-2">Car Crash Detection</h5>
-                <p class="text-muted" style="font-size: 0.9rem;">HAIDS detects traffic accidents and collisions by Video</p>
-                <a href="{{ url_for('VehicleCrashDetection')}}" class="btn btn-outline-primary btn-sm feature-btn mt-3">Try</a>
-            </div>
-
-            <!-- Fall Detection -->
-            <div class="col-12 col-md-6 col-lg-3 mb-4 feature-card-container">
-                <div class="icon-wrapper mb-3 shadow-sm">
-                    <span class="mbr-iconfont mbri-italic text-white"></span>
-                </div>
-                <h5 class="font-weight-bold text-dark mb-2">Fall Detection</h5>
-                <p class="text-muted" style="font-size: 0.9rem;">HAIDS detects falls by analyzing webcam or video</p>
-                <a href="{{ url_for('FallDetection')}}" class="btn btn-outline-primary btn-sm feature-btn mt-3">Try</a>
-            </div>
-
-            <!-- Social Distancing Detection -->
-            <div class="col-12 col-md-6 col-lg-3 mb-4 feature-card-container">
-                <div class="icon-wrapper mb-3 shadow-sm">
-                    <span class="mbr-iconfont mbri-users text-white"></span>
-                </div>
-                <h5 class="font-weight-bold text-dark mb-2">Social Distancing</h5>
-                <p class="text-muted" style="font-size: 0.9rem;">Visit for more info about model HAIDS Distancing Detection</p>
-                <a href="{{ url_for('SocialDistancingDetection')}}" class="btn btn-outline-primary btn-sm feature-btn mt-3">Learn</a>
+        <div class="hero-content">
+            <h1 class="hero-title">Human Activity & <br><span style="color: var(--primary);">Incident Detection</span> System</h1>
+            <p class="hero-subtitle">Next-generation video surveillance powered by advanced deep learning algorithms for
+                real-time threat detection and safety monitoring.</p>
+            <div class="cta-group">
+                <a href="{{ url_for('Portal') }}" class="btn-premium btn-main">Enter Portal</a>
+                <a href="#features" class="btn-premium btn-outline">Learn More</a>
             </div>
         </div>
-    </div>
+    </section>
 
-    
-</section>
-
-<section class="cid-s3MrrUyL0E" id="footer1-3">
-
-    
-
-    
-
-    <div class="container">
-        <div class="media-container-row content text-white">
-            <div class="col-12 col-md-3">
-                <div class="media-wrap">
-                    <a href="{{ url_for('Home')}}">
-                        <img src="{{url_for('static',filename='assets/images/haids-logo.png')}}" alt="Mobirise" title="">
-                    </a>
-                </div>
+    <section id="features" class="portal-container" style="margin-top: 80px;">
+        <div class="module-grid">
+            <div class="module-card glass-panel">
+                <i class="fas fa-shield-alt module-icon"></i>
+                <h3>Secure by Design</h3>
+                <p>Ensuring data privacy while providing maximal situational awareness through AI.</p>
             </div>
-            <div class="col-12 col-md-3 mbr-fonts-style display-7">
-                <h5 class="pb-3">
-                    Address
-                </h5>
-                <p class="mbr-text">University of Regina, Wascana
-                    <br>Pkwy, Regina, SK
-                    <br>S4S 0A2
-                </p>
+            <div class="module-card glass-panel">
+                <i class="fas fa-bolt module-icon"></i>
+                <h3>Real-Time Alerts</h3>
+                <p>Instant incident detection with automatic screenshot capturing and logging.</p>
             </div>
-            <div class="col-12 col-md-3 mbr-fonts-style display-7">
-                <h5 class="pb-3">
-                    Contacts
-                </h5>
-                <p class="mbr-text">
-                    Email: nga214@uregina.ca
-                    <br>Phone: (639) 382-6056
-                </p>
-            </div>
-            <div class="col-12 col-md-3 mbr-fonts-style display-4">
-                <h5 class="pb-3">
-                    Links
-                </h5>
-                <p class="mbr-text">
-                    <a class="text-primary" href="https://mobirise.co/">Website builder</a>
-<br></p>
+            <div class="module-card glass-panel">
+                <i class="fas fa-database module-icon"></i>
+                <h3>High Accuracy</h3>
+                <p>Utilizing optimized YOLOv8 and Darknet models for reliable results.</p>
             </div>
         </div>
-        <div class="footer-lower">
-            <div class="media-container-row">
-                <div class="col-sm-12">
-                    <hr>
-                </div>
-            </div>
-            <div class="media-container-row mbr-white">
-                <div class="col-sm-6 copyright">
-                        <p class="mbr-text mbr-fonts-style display-7">
-                            © Copyright 2026 HAIDS - All Rights Reserved
-                        </p>
-                </div>
-                <div class="col-md-6">
-                    <div class="social-list align-right">
-                        <div class="soc-item">
-                            <a href="https://twitter.com" target="_blank">
-                                <span class="mbr-iconfont mbr-iconfont-social socicon-x socicon"></span>
-                            </a>
-                        </div>
-                        <div class="soc-item">
-                            <a href="https://www.facebook.com" target="_blank">
-                                <span class="mbr-iconfont mbr-iconfont-social socicon-facebook socicon"></span>
-                            </a>
-                        </div>
-                        <div class="soc-item">
-                            <a href="https://www.youtube.com" target="_blank">
-                                <span class="mbr-iconfont mbr-iconfont-social socicon-youtube socicon"></span>
-                            </a>
-                        </div>
-                        <div class="soc-item">
-                            <a href="https://www.instagram.com" target="_blank">
-                                <span class="mbr-iconfont mbr-iconfont-social socicon-instagram socicon"></span>
-                            </a>
-                        </div>
-                        
-                        
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
+    </section>
 
+    <footer class="glass-panel" style="margin: 100px 20px 20px; padding: 40px; text-align: center;">
+        <p style="color: var(--text-muted);">© 2026 HAIDS | Human Activity and Incident Detection System</p>
+    </footer>
 
-  <script src="{{url_for('static',filename='assets/web/assets/jquery/jquery.min.js')}}"></script>
-  <script src="{{url_for('static',filename='assets/popper/popper.min.js')}}"></script>
-  <script src="{{url_for('static',filename='assets/tether/tether.min.js')}}"></script>
-  <script src="{{url_for('static',filename='assets/bootstrap/js/bootstrap.min.js')}}"></script>
-  <script src="{{url_for('static',filename='assets/vimeoplayer/jquery.mb.vimeo_player.js')}}"></script>
-  <script src="{{url_for('static',filename='assets/parallax/jarallax.min.js')}}"></script>
-  <script src="{{url_for('static',filename='assets/smoothscroll/smooth-scroll.js')}}"></script>
-  <script src="{{url_for('static',filename='assets/dropdown/js/script.min.js')}}"></script>
-  <script src="{{url_for('static',filename='assets/touchswipe/jquery.touch-swipe.min.js')}}"></script>
-  <script src="{{url_for('static',filename='assets/theme/js/script.js')}}"></script>
-  
-  
 </body>
+
 </html>

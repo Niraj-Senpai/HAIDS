@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAIDS | Human Activity and Incident Detection System</title>
+    <link rel="shortcut icon" href="{{url_for('static',filename='assets/images/haids-logo.png')}}" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{url_for('static',filename='assets/css/portal.css')}}">
+</head>
+<body class="centered-portal-layout">
+
+    <nav style="position: fixed; top: 0; width: 100%; padding: 20px 50px; display: flex; justify-content: space-between; align-items: center; z-index: 1000;" class="glass-panel">
+        <a href="{{ url_for('Home') }}" style="text-decoration: none; display: flex; align-items: center;">
+            <img src="{{url_for('static',filename='assets/images/haids-logo.png')}}" alt="HAIDS Logo" style="height: 40px; margin-right: 15px;">
+            <span style="font-size: 1.5rem; font-weight: 700; color: white; letter-spacing: 1px;">HAIDS</span>
+        </a>
+        <div>
+            <a href="{{ url_for('Home') }}" style="color: white; margin-left: 30px; text-decoration: none; font-weight: 600;">Home</a>
+            <a href="{{ url_for('ContactUs') }}" style="color: white; margin-left: 30px; text-decoration: none; font-weight: 600;">Contact</a>
+            <a href="https://github.com/Niraj-Senpai/HAIDS" target="_blank" style="color: white; margin-left: 30px; text-decoration: none; font-weight: 600;"><i class="fab fa-github"></i></a>
+        </div>
+    </nav>
+
+    <div class="portal-container">
+        <header class="hero-section">
+            <h1>Detection Portal</h1>
+            <p style="color: var(--text-muted); font-size: 1.2rem;">Select a detection module to begin intelligent video analysis</p>
+        </header>
+
+        <div class="module-grid">
+            <!-- Shoplifting -->
+            <div class="module-card glass-panel" onclick="selectModule('shoplifting', this)">
+                <i class="fas fa-shopping-basket module-icon"></i>
+                <h3>Shoplifting</h3>
+                <p>Advanced behavioral analysis to detect suspicious movements and potential theft in retail environments.</p>
+            </div>
+
+            <!-- Vehicle Crash -->
+            <div class="module-card glass-panel" onclick="selectModule('vehicle', this)">
+                <i class="fas fa-car-crash module-icon"></i>
+                <h3>Vehicle Crash</h3>
+                <p>Real-time traffic monitoring for collision detection and emergency incident reporting.</p>
+            </div>
+
+            <!-- Fall Detection -->
+            <div class="module-card glass-panel" onclick="selectModule('fall', this)">
+                <i class="fas fa-user-injured module-icon"></i>
+                <h3>Fall Detection</h3>
+                <p>Critical safety monitoring for healthcare or industrial sites to detect human falls instantly.</p>
+            </div>
+
+            <!-- Social Distancing -->
+            <div class="module-card glass-panel" onclick="selectModule('social', this)">
+                <i class="fas fa-people-arrows module-icon"></i>
+                <h3>Social Distance</h3>
+                <p>Measurement of inter-personal distance to ensure safety compliance in public spaces.</p>
+            </div>
+        </div>
+
+        <section id="action-area" class="action-area glass-panel" style="padding: 40px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h2 id="selected-module-title" style="font-size: 2rem; margin-bottom: 10px; color: var(--primary);">Module Selected</h2>
+                <p id="selected-module-desc" style="color: var(--text-muted);">Please upload your video file for processing.</p>
+            </div>
+
+            <form action="{{ url_for('Video') }}" method="post" enctype="multipart/form-data" id="detection-form">
+                <input type="hidden" name="module" id="module-input">
+                
+                <div class="upload-zone" onclick="document.getElementById('video_file').click()">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <h3 id="file-name">Click or Drag & Drop Video</h3>
+                    <p style="color: var(--text-muted); margin-top: 10px;">Supported formats: MP4, AVI, MOV</p>
+                    <input type="file" id="video_file" name="video_file" accept="video/*" style="display: none;" onchange="updateFileName(this)">
+                </div>
+
+                <div style="text-align: center;">
+                    <button type="submit" class="btn-start">
+                        <i class="fas fa-microchip" style="margin-right: 10px;"></i> Start AI Detection
+                    </button>
+                </div>
+            </form>
+        </section>
+    </div>
+
+    <script>
+        function selectModule(module, element) {
+            // Remove active class from all cards
+            document.querySelectorAll('.module-card').forEach(card => card.classList.remove('active'));
+            
+            // Add active class to clicked card
+            element.classList.add('active');
+            
+            // Set hidden input value
+            document.getElementById('module-input').value = module;
+            
+            // Update Action Area UI
+            const titleElement = document.getElementById('selected-module-title');
+            const descElement = document.getElementById('selected-module-desc');
+            const titles = {
+                'shoplifting': 'Shoplifting Surveillance',
+                'vehicle': 'Traffic Safety Analysis',
+                'fall': 'Safety & Fall Monitoring',
+                'social': 'Proximity Intelligence'
+            };
+            
+            titleElement.innerText = titles[module];
+            
+            // Show action area
+            const actionArea = document.getElementById('action-area');
+            actionArea.classList.add('visible');
+            
+            // Scroll to action area
+            actionArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function updateFileName(input) {
+            const fileName = input.files[0] ? input.files[0].name : "Click or Drag & Drop Video";
+            document.getElementById('file-name').innerText = fileName;
+            document.getElementById('file-name').style.color = "#00d2ff";
+        }
+    </script>
+</body>
+</html>

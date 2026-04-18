@@ -490,13 +490,23 @@ def ShopliftingDetection():
 def ContactUs():
     return render_template('ContactUs.html')
     
+@app.route('/Portal')
+def Portal():
+    return render_template('portal.html')
+
 @app.route('/Video', methods=['GET', 'POST'])
 def Video():
-    global video_link, current_alert, last_alert_time
+    global video_link, current_alert, last_alert_time, case
     # Reset alert state for a new session
     current_alert = {"id": 0, "module": "", "image": "", "timestamp": 0}
     last_alert_time = {k: 0 for k in last_alert_time}
     
+    # Set the case (module) dynamically from the form
+    selected_module = request.form.get('module')
+    if selected_module:
+        case = selected_module
+        print(f"[INFO] Detection mode set to: {case}")
+
     if 'video_file' in request.files and request.files['video_file'].filename != '':
         file = request.files['video_file']
         filename = secure_filename(file.filename)
