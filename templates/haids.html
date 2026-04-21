@@ -102,6 +102,8 @@
                 <span style="font-size: 1.8rem; font-weight: 700; color: white; letter-spacing: 1px;">HAIDS</span>
             </div>
             <div>
+                <a href="{{ url_for('IncidentDashboard') }}"
+                    style="color: white; margin-left: 30px; text-decoration: none; font-weight: 600;"><i class="fas fa-chart-bar"></i> Dashboard</a>
                 <a href="{{ url_for('ContactUs') }}"
                     style="color: white; margin-left: 30px; text-decoration: none; font-weight: 600;">Contact</a>
                 <a href="https://github.com/Niraj-Senpai/HAIDS" target="_blank"
@@ -116,7 +118,8 @@
                 real-time threat detection and safety monitoring.</p>
             <div class="cta-group">
                 <a href="{{ url_for('Portal') }}" class="btn-premium btn-main">Enter Portal</a>
-                <a href="#features" class="btn-premium btn-outline">Learn More</a>
+                <a href="{{ url_for('IncidentDashboard') }}" class="btn-premium btn-outline"><i class="fas fa-chart-bar" style="margin-right:8px;"></i>Dashboard</a>
+                <a href="{{ url_for('CombinedDetection') }}" class="btn-premium btn-outline"><i class="fas fa-layer-group" style="margin-right:8px;"></i>Detect</a>
             </div>
         </div>
     </section>

@@ -27,6 +27,14 @@ altNames = None
 video_link = None
 case = None
 
+# Combined detection — which modules are currently active
+combined_active_modules = {
+    "fall": True,
+    "shoplifting": True,
+    "social": True,
+    "vehicle": True,
+}
+
 # Alert System Globals
 current_alert = {"id": 0, "module": "", "image": "", "timestamp": 0}
 last_alert_time = {
@@ -246,7 +254,311 @@ def cvDrawBoxes_social(detections, img):
     return img
     
 
+
+
+def _draw_fall_no_alert(detections, img):
+    """
+    Draws fall-detection overlays on `img` exactly like cvDrawBoxes_fall,
+    but returns (img, fall_detected) instead of calling trigger_alert().
+    Used exclusively by gen_frames_combined() for priority-based alerting.
+    """
+    fall_detected = False
+    if len(detections) > 0:
+        centroid_dict = dict()
+        objectId = 0
+        for detection in detections:
+            name_tag = str(detection[0].decode())
+            if name_tag == 'person':
+                x, y, w, h = detection[2][0], detection[2][1], detection[2][2], detection[2][3]
+                xmin, ymin, xmax, ymax = convertBack(float(x), float(y), float(w), float(h))
+                centroid_dict[objectId] = (int(x), int(y), xmin, ymin, xmax, ymax)
+                objectId += 1
+
+        fall_alert_list = []
+        for id, p in centroid_dict.items():
+            dx, dy = p[4] - p[2], p[5] - p[3]
+            if (dy - dx) < 0:
+                fall_alert_list.append(id)
+
+        for idx, box in centroid_dict.items():
+            color = (0, 0, 255) if idx in fall_alert_list else (0, 255, 0)
+            cv2.rectangle(img, (box[2], box[3]), (box[4], box[5]), color, 2)
+
+        if fall_alert_list:
+            fall_detected = True
+            cv2.putText(img, "Fall Detected", (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
+        else:
+            cv2.putText(img, "Fall Not Detected", (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
+    return img, fall_detected
+
+
+def _draw_social_no_alert(detections, img):
+    """
+    Draws social-distancing overlays on `img` exactly like cvDrawBoxes_social,
+    but returns (img, violation_detected) instead of calling trigger_alert().
+    Used exclusively by gen_frames_combined() for priority-based alerting.
+    """
+    from scipy.spatial import distance as dist
+    from mylib import config as _cfg
+
+    results = []
+    for (label, conf, bbox) in detections:
+        if label.decode() == 'person':
+            (cX, cY, w, h) = bbox
+            startX = int(cX - (w / 2))
+            startY = int(cY - (h / 2))
+            endX   = int(cX + (w / 2))
+            endY   = int(cY + (h / 2))
+            results.append((conf, (startX, startY, endX, endY), (cX, cY)))
+
+    serious = set()
+    abnormal = set()
+    if len(results) >= 2:
+        centroids = np.array([r[2] for r in results])
+        D = dist.cdist(centroids, centroids, metric="euclidean")
+        for i in range(D.shape[0]):
+            for j in range(i + 1, D.shape[1]):
+                if D[i, j] < _cfg.MIN_DISTANCE:
+                    serious.add(i); serious.add(j)
+                    cv2.line(img,
+                             (int(centroids[i][0]), int(centroids[i][1])),
+                             (int(centroids[j][0]), int(centroids[j][1])),
+                             _cfg.YELLOW, 1, cv2.LINE_AA)
+                    cv2.circle(img, (int(centroids[i][0]), int(centroids[i][1])), 3, _cfg.ORANGE, -1, cv2.LINE_AA)
+                    cv2.circle(img, (int(centroids[j][0]), int(centroids[j][1])), 3, _cfg.ORANGE, -1, cv2.LINE_AA)
+                elif D[i, j] < _cfg.MAX_DISTANCE:
+                    abnormal.add(i); abnormal.add(j)
+
+    stat_H, stat_L = 0, 0
+    for (i, (prob, bbox, centroid)) in enumerate(results):
+        (startX, startY, endX, endY) = bbox
+        if i in serious:
+            cv2.rectangle(img, (startX, startY), (endX, endY), _cfg.RED, 2)
+            labelSize, baseLine = cv2.getTextSize("unsafe", cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
+            y1label = max(startY, labelSize[1])
+            cv2.rectangle(img, (startX, y1label - labelSize[1]),
+                          (startX + labelSize[0], startY + baseLine), _cfg.WHITE, cv2.FILLED)
+            cv2.putText(img, "unsafe", (startX, startY),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, _cfg.ORANGE, 1, cv2.LINE_AA)
+            stat_H += 1
+        else:
+            stat_L += 1
+
+    dashboard_w, dashboard_h = 250, 30
+    cv2.rectangle(img, (13, 10), (dashboard_w, dashboard_h + 10), _cfg.GREY, cv2.FILLED)
+    cv2.putText(img, "--", (30, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, _cfg.WHITE, 1, cv2.LINE_AA)
+    cv2.putText(img, f"LOW RISK: {stat_L} people", (60, 30),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, _cfg.BLUE, 1, cv2.LINE_AA)
+
+    violation_detected = stat_H > 0
+    if violation_detected:
+        cv2.putText(img, "Social Distancing Violation", (10, 100),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, _cfg.RED, 2)
+
+    return img, violation_detected
+
+
+def gen_frames_combined():
+    """
+    Runs all *enabled* detection modules on each frame of the uploaded video.
+    Modules are toggled via combined_active_modules dict set by /CombinedVideo route.
+    """
+    global combined_active_modules, video_link
+    global car_crash_model, shoplifting_model, net_dnn, classes, output_layers
+
+    active = combined_active_modules  # shorthand
+
+    # ── Load models that are needed ──────────────────────────────────────────
+    if active.get('vehicle') and car_crash_model is None:
+        print('[Combined] Loading YOLOv8 car-crash model...')
+        car_crash_model = YOLO(os.path.join(os.path.dirname(__file__), 'models/i1-yolov8s.pt'))
+
+    if active.get('shoplifting') and shoplifting_model is None:
+        print('[Combined] Loading YOLOv8 shoplifting model...')
+        shoplifting_model = YOLO(os.path.join(os.path.dirname(__file__), 'models/shoplifting_v8.pt'))
+
+    need_dnn = active.get('fall') or active.get('social')
+    configPath = "./cfg/yolov4-tiny.cfg"
+    weightPath = "./yolov4-tiny.weights"
+    namesPath  = "./cfg/coco.names"
+
+    if need_dnn and net_dnn is None:
+        print('[Combined] Loading OpenCV DNN (YOLOv4-tiny)...')
+        try:
+            net_dnn = cv2.dnn.readNetFromDarknet(configPath, weightPath)
+            if config.USE_GPU:
+                net_dnn.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+                net_dnn.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+            else:
+                net_dnn.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
+                net_dnn.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
+            layer_names   = net_dnn.getLayerNames()
+            output_layers = [layer_names[i - 1] for i in net_dnn.getUnconnectedOutLayers()]
+            with open(namesPath, 'r') as f:
+                classes = [line.strip() for line in f.readlines()]
+        except Exception as e:
+            print(f'[Combined] Error loading DNN: {e}')
+            need_dnn = False
+
+    # Vehicle tracker (per-stream instance)
+    tracker        = Sort(max_age=20, min_hits=3, iou_threshold=0.3) if active.get('vehicle') else None
+    totalAccidents = []
+
+    # ── Alert priority order (lower index = higher priority) ─────────────────
+    # Car crash > Shoplifting > Fall > Social Distancing
+    ALERT_PRIORITY = ['vehicle', 'shoplifting', 'fall', 'social']
+    ALERT_LABELS   = {
+        'vehicle':     'Vehicle',
+        'shoplifting': 'Shoplifting',
+        'fall':        'Fall',
+        'social':      'Social Distancing',
+    }
+
+    # ── Open video ───────────────────────────────────────────────────────────
+    if video_link and os.path.exists(video_link):
+        cap = cv2.VideoCapture(video_link)
+    else:
+        print('[Combined] No valid video file found.')
+        return
+
+    if not cap.isOpened():
+        print('[Combined] Failed to open video.')
+        return
+
+    h_cap = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    w_cap = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    if h_cap == 0 or w_cap == 0:
+        print('[Combined] Invalid video dimensions.')
+        cap.release()
+        return
+
+    print(f'[Combined] Streaming {w_cap}x{h_cap} video with modules: {active}')
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        h_orig, w_orig = frame.shape[:2]
+
+        # Collect incidents detected THIS frame: set of module keys
+        frame_incidents = set()
+
+        # ── Vehicle Crash (YOLOv8) ───────────────────────────────────────────
+        if active.get('vehicle') and car_crash_model is not None:
+            results_v      = car_crash_model(frame, stream=True)
+            detections_v8  = np.empty((0, 5))
+            for r in results_v:
+                for box in r.boxes:
+                    x1, y1, x2, y2 = [int(v) for v in box.xyxy[0]]
+                    w, h = x2 - x1, y2 - y1
+                    conf = math.ceil(box.conf[0] * 100) / 100
+                    if conf > 0.4:
+                        cvzone.cornerRect(frame, (x1, y1, w, h))
+                        cvzone.putTextRect(frame, f'Accident {conf}',
+                                           (max(0, x1), max(35, y1)), colorR=(0, 165, 255))
+                        detections_v8 = np.vstack((detections_v8, np.array([x1, y1, x2, y2, conf])))
+            if tracker is not None:
+                for result in tracker.update(detections_v8):
+                    x1, y1, x2, y2, tid = [int(v) for v in result]
+                    w, h = x2 - x1, y2 - y1
+                    if tid not in totalAccidents:
+                        cvzone.cornerRect(frame, (x1, y1, w, h), colorR=(255, 0, 255))
+                        cvzone.putTextRect(frame, f'{tid}', (max(0, x1), max(35, y1)))
+                        cx, cy = x1 + w // 2, y1 + h // 2
+                        cv2.circle(frame, (cx, cy), 5, (255, 0, 255), cv2.FILLED)
+                        totalAccidents.append(tid)
+                        frame_incidents.add('vehicle')   # flag — DO NOT alert yet
+
+        # ── Shoplifting (YOLOv8) ─────────────────────────────────────────────
+        if active.get('shoplifting') and shoplifting_model is not None:
+            results_s = shoplifting_model.predict(frame)
+            cc_data   = np.array(results_s[0].boxes.data)
+            if len(cc_data) != 0:
+                xywh = np.array(results_s[0].boxes.xywh).astype('int32')
+                xyxy = np.array(results_s[0].boxes.xyxy).astype('int32')
+                high_conf_shoplifting = False
+                status_s = ''
+                for (x1, y1, _, _), (_, _, w, h), (_, _, _, _, conf, clas) in zip(xyxy, xywh, cc_data):
+                    if clas == 1:
+                        cv2.rectangle(frame, (x1, y1), (x1 + w, y1 + h), (0, 255, 0), 2)
+                        cx = int(x1 + w // 2)
+                        cv2.circle(frame, (cx, y1), 6, (0, 0, 255), 8)
+                        cv2.putText(frame, f'{round(conf * 100, 1)}%', (x1 + 10, y1 - 10),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+                        status_s = 'Shoplifting'
+                        if conf > 0.69:
+                            high_conf_shoplifting = True
+                if status_s:
+                    cv2.putText(frame, status_s, (10, 60),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                    if high_conf_shoplifting:
+                        frame_incidents.add('shoplifting')   # flag — DO NOT alert yet
+
+        # ── Fall & Social Distancing (DNN) ───────────────────────────────────
+        if need_dnn and net_dnn is not None and (active.get('fall') or active.get('social')):
+            blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (416, 416), (0, 0, 0), True, crop=False)
+            net_dnn.setInput(blob)
+            outs = net_dnn.forward(output_layers)
+
+            class_ids_d, confidences_d, boxes_d = [], [], []
+            conf_thresh_d = 0.7
+            for out in outs:
+                for detection in out:
+                    scores     = detection[5:]
+                    class_id   = np.argmax(scores)
+                    confidence = scores[class_id]
+                    if confidence > conf_thresh_d:
+                        center_x = int(detection[0] * w_orig)
+                        center_y = int(detection[1] * h_orig)
+                        w_bbox   = int(detection[2] * w_orig)
+                        h_bbox   = int(detection[3] * h_orig)
+                        boxes_d.append([center_x, center_y, w_bbox, h_bbox])
+                        confidences_d.append(float(confidence))
+                        class_ids_d.append(class_id)
+
+            indexes_d    = cv2.dnn.NMSBoxes(boxes_d, confidences_d, 0.25, 0.4)
+            detections_d = []
+            for i in range(len(boxes_d)):
+                if i in indexes_d:
+                    label = classes[class_ids_d[i]]
+                    detections_d.append((label.encode(), confidences_d[i], boxes_d[i]))
+
+            # Run drawing helpers — they internally call trigger_alert;
+            # we need to intercept those calls via the priority system below,
+            # so we use a custom wrapper that just flags instead of alerting.
+            if active.get('fall'):
+                # Run logic manually to detect without alerting
+                frame, fall_detected = _draw_fall_no_alert(detections_d, frame)
+                if fall_detected:
+                    frame_incidents.add('fall')
+            if active.get('social'):
+                frame, social_detected = _draw_social_no_alert(detections_d, frame)
+                if social_detected:
+                    frame_incidents.add('social')
+
+        # ── Priority-based single alert per frame ─────────────────────────────
+        # Walk the priority list and fire only the first (highest priority) hit.
+        for module_key in ALERT_PRIORITY:
+            if module_key in frame_incidents:
+                trigger_alert(ALERT_LABELS[module_key], frame)
+                print(f'[Priority] Alert fired for "{ALERT_LABELS[module_key]}" '
+                      f'(suppressed: {frame_incidents - {module_key}})')
+                break  # only one alert per frame
+
+        # ── Encode & yield ───────────────────────────────────────────────────
+        ret_enc, buffer = cv2.imencode('.jpg', frame)
+        if not ret_enc:
+            continue
+        yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+
+    cap.release()
+
+
 def gen_frames(): 
+
     global case
     global net_dnn, classes, output_layers, video_link, car_crash_model, shoplifting_model
     
@@ -512,6 +824,122 @@ def ContactUs():
 @app.route('/Portal')
 def Portal():
     return render_template('portal.html')
+
+@app.route('/Dashboard')
+def IncidentDashboard():
+    """
+    Scans the alerts folder, parses filenames into structured incident data,
+    and renders the Dashboard template with sorted, enriched incident objects.
+
+    Filename format: alert_<module>_<YYYYMMDD>-<HHMMSS>.jpg
+    Examples:
+        alert_fall_20260421-134400.jpg
+        alert_social distancing_20260418-160733.jpg
+        alert_vehicle_20260418-153508.jpg
+    """
+    import re
+    from datetime import datetime
+
+    alerts_dir = os.path.join('static', 'assets', 'images', 'alerts')
+    os.makedirs(alerts_dir, exist_ok=True)
+
+    MODULE_META = {
+        'fall':              {'label': 'Fall',              'icon': 'fa-user-injured',   'key': 'fall'},
+        'shoplifting':       {'label': 'Shoplifting',       'icon': 'fa-shopping-basket','key': 'shoplifting'},
+        'social distancing': {'label': 'Social Distancing', 'icon': 'fa-people-arrows',  'key': 'social'},
+        'vehicle':           {'label': 'Vehicle Crash',     'icon': 'fa-car-crash',      'key': 'vehicle'},
+    }
+
+    incidents = []
+    counts    = {k: 0 for k in MODULE_META}
+
+    pattern = re.compile(r'^alert_(.+?)_(\d{8})-(\d{6})\.jpg$', re.IGNORECASE)
+
+    for fname in os.listdir(alerts_dir):
+        if not fname.lower().endswith('.jpg'):
+            continue
+        m = pattern.match(fname)
+        if not m:
+            continue
+
+        raw_module  = m.group(1).lower()   # e.g. "fall", "social distancing"
+        date_str    = m.group(2)           # e.g. "20260421"
+        time_str    = m.group(3)           # e.g. "134400"
+
+        # Parse datetime
+        try:
+            dt = datetime.strptime(date_str + time_str, '%Y%m%d%H%M%S')
+        except ValueError:
+            continue
+
+        date_display = dt.strftime('%b %d, %Y')          # Apr 21, 2026
+        time_display = dt.strftime('%I:%M:%S %p')         # 01:44:00 PM
+        datetime_display = dt.strftime('%b %d, %Y  %I:%M %p')
+
+        # Look up module meta (fallback to unknown)
+        meta = MODULE_META.get(raw_module, {
+            'label': raw_module.title(),
+            'icon':  'fa-exclamation-triangle',
+            'key':   'unknown'
+        })
+
+        # Update count (use raw_module key for known modules)
+        if raw_module in counts:
+            counts[raw_module] += 1
+
+        incidents.append({
+            'filename':         fname,
+            'url':              f'/static/assets/images/alerts/{fname}',
+            'module_key':       meta['key'],
+            'module_label':     meta['label'],
+            'icon':             meta['icon'],
+            'date_display':     date_display,
+            'time_display':     time_display,
+            'datetime_display': datetime_display,
+            'sort_key':         dt,
+        })
+
+    # Sort newest first
+    incidents.sort(key=lambda x: x['sort_key'], reverse=True)
+
+    return render_template('Dashboard.html', incidents=incidents, counts=counts)
+
+@app.route('/CombinedDetection')
+def CombinedDetection():
+    return render_template('CombinedDetection.html')
+
+@app.route('/CombinedVideo', methods=['GET', 'POST'])
+def CombinedVideo():
+    global video_link, current_alert, last_alert_time, combined_active_modules
+
+    # Reset alert state
+    current_alert  = {"id": 0, "module": "", "image": "", "timestamp": 0}
+    last_alert_time = {k: 0 for k in last_alert_time}
+
+    # Read which modules are enabled from the form
+    combined_active_modules = {
+        "fall":        request.form.get('enable_fall',        '0') == '1',
+        "shoplifting": request.form.get('enable_shoplifting', '0') == '1',
+        "social":      request.form.get('enable_social',      '0') == '1',
+        "vehicle":     request.form.get('enable_vehicle',     '0') == '1',
+    }
+    print(f"[INFO] Combined detection modules: {combined_active_modules}")
+
+    # Save uploaded video
+    if 'video_file' in request.files and request.files['video_file'].filename != '':
+        file     = request.files['video_file']
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+        video_link = file_path
+    else:
+        video_link = request.form.get('videolink')
+
+    return render_template('CombinedVideo.html', active_modules=combined_active_modules)
+
+@app.route('/combined_video_feed')
+def combined_video_feed():
+    return Response(gen_frames_combined(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/Video', methods=['GET', 'POST'])
 def Video():

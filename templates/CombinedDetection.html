@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAIDS | Combined Detection Dashboard</title>
+    <meta name="description" content="Run all four AI detection modules simultaneously — Fall, Shoplifting, Social Distancing, and Vehicle Crash — on a single uploaded video.">
+    <link rel="shortcut icon" href="{{url_for('static',filename='assets/images/haids-logo.png')}}" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{url_for('static',filename='assets/css/portal.css')}}">
+    <style>
+        /* ── Page Layout ── */
+        body { padding-top: 90px; }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 50px;
+            animation: fadeIn 0.8s ease-out;
+        }
+        .page-header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #00d2ff, #9d50bb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        .page-header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* ── Modules Toggle Grid ── */
+        .toggles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .toggle-card {
+            padding: 28px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .toggle-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, transparent, rgba(0, 210, 255, 0.04));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .toggle-card.enabled::before { opacity: 1; }
+        .toggle-card.enabled { border-color: rgba(0, 210, 255, 0.35); }
+
+        .toggle-card-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .module-icon-sm {
+            font-size: 1.6rem;
+            color: var(--primary);
+            width: 42px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .toggle-card.enabled .module-icon-sm { filter: drop-shadow(0 0 8px rgba(0,210,255,0.6)); }
+
+        .toggle-info h4 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 3px;
+        }
+        .toggle-info span {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        /* ── Toggle Switch ── */
+        .toggle-switch {
+            position: relative;
+            width: 52px;
+            height: 28px;
+            flex-shrink: 0;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 28px;
+            transition: 0.3s;
+        }
+        .slider::before {
+            content: '';
+            position: absolute;
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        input:checked + .slider {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            border-color: transparent;
+        }
+        input:checked + .slider::before {
+            transform: translateX(24px);
+            background: white;
+        }
+
+        /* ── Status pill on card ── */
+        .status-pill {
+            position: absolute;
+            top: 10px;
+            right: 68px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            transition: 0.3s;
+        }
+        .status-pill.on  { background: rgba(0,210,255,0.15); color: var(--primary); }
+        .status-pill.off { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+
+        /* ── Upload Section ── */
+        .upload-section {
+            padding: 40px;
+        }
+
+        .upload-section h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .upload-section h2 i { color: var(--primary); }
+        .upload-section > p {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+        }
+
+        .active-modules-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 28px;
+            min-height: 36px;
+        }
+        .active-chip {
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: 1px solid rgba(0,210,255,0.4);
+            background: rgba(0,210,255,0.08);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            animation: fadeIn 0.3s ease;
+        }
+        .no-module-warning {
+            color: #ff6b6b;
+            font-size: 0.88rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .upload-zone {
+            cursor: pointer;
+            margin-bottom: 30px;
+        }
+        .upload-zone i { display: block; }
+
+        .btn-run {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 16px;
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+        }
+        .btn-run:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(157, 80, 187, 0.5);
+        }
+        .btn-run:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* ── Info Cards row ── */
+        .info-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 40px;
+        }
+        .info-card {
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .info-card i {
+            font-size: 1.6rem;
+            color: var(--primary);
+        }
+        .info-card h5 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: white;
+        }
+        .info-card p {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            .page-header h1 { font-size: 2rem; }
+            .upload-section { padding: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav style="position: fixed; top: 0; width: 100%; padding: 20px 50px; display: flex; justify-content: space-between; align-items: center; z-index: 1000;" class="glass-panel">
+        <a href="{{ url_for('Home') }}" style="text-decoration: none; display: flex; align-items: center;">
+            <img src="{{url_for('static',filename='assets/images/haids-logo.png')}}" alt="HAIDS Logo" style="height: 40px; margin-right: 15px;">
+            <span style="font-size: 1.5rem; font-weight: 700; color: white; letter-spacing: 1px;">HAIDS</span>
+        </a>
+        <div>
+            <a href="{{ url_for('Portal') }}" style="color: var(--primary); margin-left: 30px; text-decoration: none; font-weight: 600;"><i class="fas fa-th-large"></i> Portal</a>
+            <a href="{{ url_for('Home') }}" style="color: white; margin-left: 30px; text-decoration: none; font-weight: 600;">Home</a>
+            <a href="{{ url_for('ContactUs') }}" style="color: white; margin-left: 30px; text-decoration: none; font-weight: 600;">Contact</a>
+            <a href="https://github.com/Niraj-Senpai/HAIDS" target="_blank" style="color: white; margin-left: 30px; text-decoration: none; font-weight: 600;"><i class="fab fa-github"></i></a>
+        </div>
+    </nav>
+
+    <div class="portal-container">
+        <!-- Page Header -->
+        <header class="page-header">
+            <h1><i class="fas fa-layer-group" style="font-size:2.2rem; margin-right: 12px;"></i>Combined Detection</h1>
+            <p>Upload a single video and run multiple AI detection models simultaneously. Toggle each model on or off as needed.</p>
+        </header>
+
+        <!-- Quick Info Row -->
+        <div class="info-row">
+            <div class="info-card glass-panel">
+                <i class="fas fa-toggle-on"></i>
+                <div>
+                    <h5>Selective Activation</h5>
+                    <p>Enable only the models you need</p>
+                </div>
+            </div>
+            <div class="info-card glass-panel">
+                <i class="fas fa-film"></i>
+                <div>
+                    <h5>Single Upload</h5>
+                    <p>One video processed by all active models</p>
+                </div>
+            </div>
+            <div class="info-card glass-panel">
+                <i class="fas fa-bell"></i>
+                <div>
+                    <h5>Unified Alerts</h5>
+                    <p>All incidents logged in one activity feed</p>
+                </div>
+            </div>
+            <div class="info-card glass-panel">
+                <i class="fas fa-microchip"></i>
+                <div>
+                    <h5>AI-Powered</h5>
+                    <p>YOLOv8 + Darknet inference engine</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detection Model Toggles -->
+        <div class="toggles-grid" id="toggles-grid">
+            <!-- Fall Detection -->
+            <div class="toggle-card glass-panel" id="card-fall">
+                <span class="status-pill on" id="pill-fall">ON</span>
+                <div class="toggle-card-left">
+                    <i class="fas fa-user-injured module-icon-sm"></i>
+                    <div class="toggle-info">
+                        <h4>Fall Detection</h4>
+                        <span>Detects human falls via pose ratio</span>
+                    </div>
+                </div>
+                <label class="toggle-switch" title="Toggle Fall Detection">
+                    <input type="checkbox" id="toggle-fall" checked onchange="syncToggle('fall', this)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <!-- Shoplifting Detection -->
+            <div class="toggle-card glass-panel" id="card-shoplifting">
+                <span class="status-pill on" id="pill-shoplifting">ON</span>
+                <div class="toggle-card-left">
+                    <i class="fas fa-shopping-basket module-icon-sm"></i>
+                    <div class="toggle-info">
+                        <h4>Shoplifting</h4>
+                        <span>Behavioural theft recognition</span>
+                    </div>
+                </div>
+                <label class="toggle-switch" title="Toggle Shoplifting Detection">
+                    <input type="checkbox" id="toggle-shoplifting" checked onchange="syncToggle('shoplifting', this)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <!-- Social Distancing -->
+            <div class="toggle-card glass-panel" id="card-social">
+                <span class="status-pill on" id="pill-social">ON</span>
+                <div class="toggle-card-left">
+                    <i class="fas fa-people-arrows module-icon-sm"></i>
+                    <div class="toggle-info">
+                        <h4>Social Distancing</h4>
+                        <span>Proximity violation monitoring</span>
+                    </div>
+                </div>
+                <label class="toggle-switch" title="Toggle Social Distancing">
+                    <input type="checkbox" id="toggle-social" checked onchange="syncToggle('social', this)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <!-- Vehicle Crash Detection -->
+            <div class="toggle-card glass-panel" id="card-vehicle">
+                <span class="status-pill on" id="pill-vehicle">ON</span>
+                <div class="toggle-card-left">
+                    <i class="fas fa-car-crash module-icon-sm"></i>
+                    <div class="toggle-info">
+                        <h4>Vehicle Crash</h4>
+                        <span>Traffic collision detection</span>
+                    </div>
+                </div>
+                <label class="toggle-switch" title="Toggle Vehicle Crash Detection">
+                    <input type="checkbox" id="toggle-vehicle" checked onchange="syncToggle('vehicle', this)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Upload & Run Section -->
+        <div class="upload-section glass-panel">
+            <h2><i class="fas fa-cloud-upload-alt"></i> Upload &amp; Run</h2>
+            <p>Select your video file, then hit <strong style="color:var(--primary);">Run Detection</strong>. Active models will process the footage and flag any incidents in real time.</p>
+
+            <!-- Active modules preview chips -->
+            <div class="active-modules-preview" id="active-chips">
+                <div class="active-chip"><i class="fas fa-user-injured"></i> Fall</div>
+                <div class="active-chip"><i class="fas fa-shopping-basket"></i> Shoplifting</div>
+                <div class="active-chip"><i class="fas fa-people-arrows"></i> Social Distance</div>
+                <div class="active-chip"><i class="fas fa-car-crash"></i> Vehicle Crash</div>
+            </div>
+
+            <form action="{{ url_for('CombinedVideo') }}" method="post" enctype="multipart/form-data" id="combined-form">
+                <!-- Hidden inputs for each model toggle -->
+                <input type="hidden" name="enable_fall"       id="h-fall"       value="1">
+                <input type="hidden" name="enable_shoplifting" id="h-shoplifting" value="1">
+                <input type="hidden" name="enable_social"     id="h-social"     value="1">
+                <input type="hidden" name="enable_vehicle"    id="h-vehicle"    value="1">
+
+                <div class="upload-zone" id="drop-zone" onclick="document.getElementById('video_file_combined').click()">
+                    <i class="fas fa-cloud-upload-alt" style="font-size:3rem; color:var(--primary); margin-bottom:16px;"></i>
+                    <h3 id="combined-file-name" style="margin-bottom:8px;">Click or Drag &amp; Drop Video</h3>
+                    <p style="color:var(--text-muted); font-size:0.9rem;">Supported: MP4, AVI, MOV, MKV</p>
+                    <input type="file" id="video_file_combined" name="video_file" accept="video/*" style="display:none;"
+                           onchange="onFileSelected(this)" required>
+                </div>
+
+                <button type="submit" class="btn-run" id="run-btn" disabled>
+                    <i class="fas fa-microchip"></i> Run Detection
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <footer class="glass-panel" style="margin: 60px 20px 20px; padding: 30px; text-align: center; max-width: 1200px; margin-left: auto; margin-right: auto;">
+        <p style="color: var(--text-muted);">© 2026 HAIDS | Human Activity and Incident Detection System</p>
+    </footer>
+
+    <script>
+        const MODULES = {
+            fall:        { label: 'Fall',           icon: 'fa-user-injured' },
+            shoplifting: { label: 'Shoplifting',    icon: 'fa-shopping-basket' },
+            social:      { label: 'Social Distance', icon: 'fa-people-arrows' },
+            vehicle:     { label: 'Vehicle Crash',  icon: 'fa-car-crash' },
+        };
+
+        // Sync toggle UI + hidden input
+        function syncToggle(key, checkbox) {
+            const card   = document.getElementById('card-' + key);
+            const pill   = document.getElementById('pill-' + key);
+            const hidden = document.getElementById('h-' + key);
+
+            if (checkbox.checked) {
+                card.classList.add('enabled');
+                pill.textContent = 'ON';
+                pill.className = 'status-pill on';
+                hidden.value = '1';
+            } else {
+                card.classList.remove('enabled');
+                pill.textContent = 'OFF';
+                pill.className = 'status-pill off';
+                hidden.value = '0';
+            }
+            rebuildChips();
+        }
+
+        // Rebuild the active-chips preview above upload zone
+        function rebuildChips() {
+            const container = document.getElementById('active-chips');
+            container.innerHTML = '';
+            let anyActive = false;
+
+            Object.entries(MODULES).forEach(([key, meta]) => {
+                const chk = document.getElementById('toggle-' + key);
+                if (chk.checked) {
+                    anyActive = true;
+                    const chip = document.createElement('div');
+                    chip.className = 'active-chip';
+                    chip.innerHTML = `<i class="fas ${meta.icon}"></i> ${meta.label}`;
+                    container.appendChild(chip);
+                }
+            });
+
+            if (!anyActive) {
+                container.innerHTML = '<span class="no-module-warning"><i class="fas fa-exclamation-triangle"></i> Enable at least one detection model to proceed.</span>';
+            }
+
+            updateSubmitBtn();
+        }
+
+        // Enable / disable Run button
+        function updateSubmitBtn() {
+            const anyActive = Object.keys(MODULES).some(k => document.getElementById('toggle-' + k).checked);
+            const hasFile   = document.getElementById('video_file_combined').files.length > 0;
+            document.getElementById('run-btn').disabled = !(anyActive && hasFile);
+        }
+
+        function onFileSelected(input) {
+            const name = input.files[0] ? input.files[0].name : 'Click or Drag & Drop Video';
+            const el = document.getElementById('combined-file-name');
+            el.textContent = name;
+            el.style.color = '#00d2ff';
+            updateSubmitBtn();
+        }
+
+        // Drag-and-drop support
+        const dropZone = document.getElementById('drop-zone');
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'var(--primary)'; });
+        dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = ''; });
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.style.borderColor = '';
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('video/')) {
+                const dt  = new DataTransfer();
+                dt.items.add(file);
+                const inp = document.getElementById('video_file_combined');
+                inp.files = dt.files;
+                onFileSelected(inp);
+            }
+        });
+
+        // Initialise enabled class on all cards (all checked by default)
+        Object.keys(MODULES).forEach(key => {
+            document.getElementById('card-' + key).classList.add('enabled');
+        });
+    </script>
+</body>
+</html>

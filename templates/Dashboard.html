@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAIDS | Incident Dashboard</title>
+    <meta name="description" content="Review all detected incidents captured by HAIDS across every detection module.">
+    <link rel="shortcut icon" href="{{url_for('static',filename='assets/images/haids-logo.png')}}" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{url_for('static',filename='assets/css/portal.css')}}">
+    <style>
+        body { padding-top: 90px; }
+
+        /* ── Page header ── */
+        .dash-header {
+            text-align: center;
+            margin-bottom: 50px;
+            animation: fadeIn 0.8s ease-out;
+        }
+        .dash-header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #00d2ff, #9d50bb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        .dash-header p { color: var(--text-muted); font-size: 1.05rem; }
+
+        /* ── Summary stats row ── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 40px;
+        }
+        .stat-card {
+            padding: 20px 24px;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+        .stat-card:hover { transform: translateY(-4px); }
+        .stat-card .stat-num {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--primary);
+            display: block;
+            margin-bottom: 4px;
+        }
+        .stat-card .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        /* ── Filter bar ── */
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 30px;
+            align-items: center;
+        }
+        .filter-btn {
+            padding: 7px 18px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.04);
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s;
+            font-family: inherit;
+        }
+        .filter-btn:hover, .filter-btn.active {
+            background: rgba(0,210,255,0.1);
+            border-color: rgba(0,210,255,0.4);
+            color: var(--primary);
+        }
+        .filter-label {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin-right: 4px;
+        }
+
+        /* ── Incident grid ── */
+        .incident-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        .incident-card {
+            overflow: hidden;
+            transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            position: relative;
+        }
+        .incident-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+        }
+
+        .card-img-wrap {
+            position: relative;
+            overflow: hidden;
+        }
+        .card-img-wrap img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.5s ease;
+        }
+        .incident-card:hover .card-img-wrap img {
+            transform: scale(1.06);
+        }
+
+        /* Gradient overlay on image */
+        .card-img-wrap::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 60%;
+            background: linear-gradient(to top, rgba(5,5,5,0.85), transparent);
+            pointer-events: none;
+        }
+
+        /* Module badge on image */
+        .module-badge {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .badge-fall        { background: rgba(255,100,100,0.85); color: #fff; }
+        .badge-shoplifting { background: rgba(255,160,50,0.85);  color: #fff; }
+        .badge-social      { background: rgba(80,180,255,0.85);  color: #fff; }
+        .badge-vehicle     { background: rgba(200,80,255,0.85);  color: #fff; }
+        .badge-unknown     { background: rgba(120,120,120,0.85); color: #fff; }
+
+        .card-body {
+            padding: 18px 20px 20px;
+        }
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-title i { color: var(--primary); }
+        .card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        .meta-item i { color: var(--primary); font-size: 0.75rem; }
+
+        /* ── Empty state ── */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-muted);
+            grid-column: 1 / -1;
+        }
+        .empty-state i { font-size: 4rem; margin-bottom: 20px; display: block; opacity: 0.3; }
+        .empty-state h3 { font-size: 1.4rem; margin-bottom: 10px; }
+
+        /* ── Lightbox overlay ── */
+        #lightbox {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.92);
+            z-index: 9000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 30px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        #lightbox.show { opacity: 1; visibility: visible; }
+        #lightbox img {
+            max-width: 90vw;
+            max-height: 75vh;
+            border-radius: 16px;
+            box-shadow: 0 0 60px rgba(0,210,255,0.2);
+            margin-bottom: 20px;
+        }
+        #lightbox-meta {
+            text-align: center;
+            color: white;
+        }
+        #lightbox-meta h3 { font-size: 1.3rem; margin-bottom: 6px; }
+        #lightbox-meta p  { color: var(--text-muted); font-size: 0.9rem; }
+        #lightbox-close {
+            position: absolute;
+            top: 20px; right: 30px;
+            font-size: 2rem;
+            color: white;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+            background: none;
+            border: none;
+        }
+        #lightbox-close:hover { opacity: 1; }
+
+        @media (max-width: 640px) {
+            .dash-header h1 { font-size: 2rem; }
+            .incident-grid  { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav style="position: fixed; top: 0; width: 100%; padding: 20px 50px; display: flex; justify-content: space-between; align-items: center; z-index: 1000;" class="glass-panel">
+        <a href="{{ url_for('Home') }}" style="text-decoration: none; display: flex; align-items: center;">
+            <img src="{{url_for('static',filename='assets/images/haids-logo.png')}}" alt="HAIDS Logo" style="height: 40px; margin-right: 15px;">
+            <span style="font-size: 1.5rem; font-weight: 700; color: white; letter-spacing: 1px;">HAIDS</span>
+        </a>
+        <div>
+            <a href="{{ url_for('IncidentDashboard') }}" style="color: var(--primary); margin-left: 30px; text-decoration: none; font-weight: 600;"><i class="fas fa-chart-bar"></i> Dashboard</a>
+            <a href="{{ url_for('Portal') }}" style="color: white; margin-left: 30px; text-decoration: none; font-weight: 600;"><i class="fas fa-th-large"></i> Portal</a>
+            <a href="{{ url_for('Home') }}" style="color: white; margin-left: 30px; text-decoration: none; font-weight: 600;">Home</a>
+            <a href="{{ url_for('ContactUs') }}" style="color: white; margin-left: 30px; text-decoration: none; font-weight: 600;">Contact</a>
+            <a href="https://github.com/Niraj-Senpai/HAIDS" target="_blank" style="color: white; margin-left: 30px; text-decoration: none; font-weight: 600;"><i class="fab fa-github"></i></a>
+        </div>
+    </nav>
+
+    <div class="portal-container">
+        <!-- Page Header -->
+        <header class="dash-header">
+            <h1><i class="fas fa-chart-bar" style="font-size:2rem; margin-right:12px;"></i>Incident Dashboard</h1>
+            <p>All captured incident screenshots — sorted by most recent. Click any card to view full-size.</p>
+        </header>
+
+        <!-- Summary stats -->
+        <div class="stats-row">
+            <div class="stat-card glass-panel">
+                <span class="stat-num">{{ incidents | length }}</span>
+                <span class="stat-label">Total Incidents</span>
+            </div>
+            <div class="stat-card glass-panel">
+                <span class="stat-num">{{ counts.get('fall', 0) }}</span>
+                <span class="stat-label">Fall Detections</span>
+            </div>
+            <div class="stat-card glass-panel">
+                <span class="stat-num">{{ counts.get('shoplifting', 0) }}</span>
+                <span class="stat-label">Shoplifting</span>
+            </div>
+            <div class="stat-card glass-panel">
+                <span class="stat-num">{{ counts.get('social distancing', 0) }}</span>
+                <span class="stat-label">Social Distancing</span>
+            </div>
+            <div class="stat-card glass-panel">
+                <span class="stat-num">{{ counts.get('vehicle', 0) }}</span>
+                <span class="stat-label">Vehicle Crash</span>
+            </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="filter-bar">
+            <span class="filter-label"><i class="fas fa-filter"></i> Filter:</span>
+            <button class="filter-btn active" id="btn-all" onclick="filterCards('all')">All</button>
+            <button class="filter-btn" id="btn-fall" onclick="filterCards('fall')"><i class="fas fa-user-injured"></i> Fall</button>
+            <button class="filter-btn" id="btn-shoplifting" onclick="filterCards('shoplifting')"><i class="fas fa-shopping-basket"></i> Shoplifting</button>
+            <button class="filter-btn" id="btn-social" onclick="filterCards('social')"><i class="fas fa-people-arrows"></i> Social Distance</button>
+            <button class="filter-btn" id="btn-vehicle" onclick="filterCards('vehicle')"><i class="fas fa-car-crash"></i> Vehicle Crash</button>
+        </div>
+
+        <!-- Incident grid -->
+        <div class="incident-grid" id="incident-grid">
+            {% if incidents %}
+                {% for inc in incidents %}
+                <div class="incident-card glass-panel"
+                     data-module="{{ inc.module_key }}"
+                     onclick="openLightbox('{{ inc.url }}', '{{ inc.module_label }}', '{{ inc.datetime_display }}', '{{ inc.filename }}')">
+
+                    <div class="card-img-wrap">
+                        <img src="{{ inc.url }}" alt="{{ inc.module_label }} incident" loading="lazy">
+                        <span class="module-badge badge-{{ inc.module_key }}">
+                            <i class="fas {{ inc.icon }}"></i>
+                            {{ inc.module_label }}
+                        </span>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="card-title">
+                            <i class="fas fa-exclamation-circle"></i>
+                            {{ inc.module_label }} Detected
+                        </div>
+                        <div class="card-meta">
+                            <span class="meta-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                {{ inc.date_display }}
+                            </span>
+                            <span class="meta-item">
+                                <i class="fas fa-clock"></i>
+                                {{ inc.time_display }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-shield-alt"></i>
+                    <h3>No incidents recorded yet</h3>
+                    <p>Run a detection session — screenshots will appear here automatically.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <footer class="glass-panel" style="margin: 0 20px 20px; padding: 30px; text-align: center; max-width: 1200px; margin-left: auto; margin-right: auto;">
+        <p style="color: var(--text-muted);">© 2026 HAIDS | Human Activity and Incident Detection System</p>
+    </footer>
+
+    <!-- Lightbox -->
+    <div id="lightbox" onclick="closeLightboxBg(event)">
+        <button id="lightbox-close" onclick="closeLightbox()"><i class="fas fa-times"></i></button>
+        <img id="lightbox-img" src="" alt="Incident screenshot">
+        <div id="lightbox-meta">
+            <h3 id="lightbox-title"></h3>
+            <p id="lightbox-sub"></p>
+        </div>
+    </div>
+
+    <script>
+        // ── Filter ───────────────────────────────────────────────────────────
+        function filterCards(module) {
+            const cards   = document.querySelectorAll('.incident-card');
+            const buttons = document.querySelectorAll('.filter-btn');
+
+            buttons.forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + module) && document.getElementById('btn-' + module).classList.add('active');
+            if (module === 'all') document.getElementById('btn-all').classList.add('active');
+
+            cards.forEach(card => {
+                const match = module === 'all' || card.dataset.module === module;
+                card.style.display = match ? '' : 'none';
+            });
+        }
+
+        // ── Lightbox ─────────────────────────────────────────────────────────
+        function openLightbox(url, label, datetime, filename) {
+            document.getElementById('lightbox-img').src   = url;
+            document.getElementById('lightbox-title').textContent = label + ' Detected';
+            document.getElementById('lightbox-sub').textContent   = datetime + ' · ' + filename;
+            document.getElementById('lightbox').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        function closeLightboxBg(e) {
+            if (e.target === document.getElementById('lightbox')) closeLightbox();
+        }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+    </script>
+</body>
+</html>
