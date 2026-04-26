@@ -2,11 +2,11 @@ Flask
 opencv-python
 numpy
 scipy
-imutils
-yt-dlp
-requests
-schedule
 ultralytics
 cvzone
+yt-dlp
 filterpy
+scikit-image
+matplotlib
 pandas
+# lap # Optional: speedup for SORT tracker (requires build tools on Windows)
