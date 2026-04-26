@@ -5,7 +5,7 @@
 [![YOLOv8](https://img.shields.io/badge/YOLOv8-Ultralytics-00FFFF?style=for-the-badge&logo=ai&logoColor=white)](https://ultralytics.com/)
 [![OpenCV](https://img.shields.io/badge/OpenCV-4.5+-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)](https://opencv.org/)
 
-**HAIDS** is a state-of-the-art, AI-powered surveillance portal designed for real-time monitoring and incident response. Built with a premium **"Deep Space" Dark Mode** aesthetic and utilizing advanced computer vision models, HAIDS transforms standard video feeds into intelligent, actionable security data.
+**HAIDS** is an AI-powered surveillance portal designed for real-time monitoring and incident response. Built with a premium **"Deep Space" Dark Mode** aesthetic and utilizing advanced computer vision models, HAIDS transforms standard video feeds into intelligent, actionable security data.
 
 ---
 
@@ -23,19 +23,19 @@
 ## 🚀 Detection Modules
 
 ### 🚨 Car Crash Detection
-- **Model**: YOLOv8s (`i1-yolov8s.pt`) + SORT Tracker.
+- **Model**: YOLOv8s  + SORT Tracker
 - **Function**: Detects vehicle collisions and tracks unique accident events to prevent redundant alerts.
 
 ### 🧤 Shoplifting Detection
-- **Model**: Custom YOLOv8 (`shoplifting_v8.pt`).
+- **Model**: Custom YOLOv8s 
 - **Function**: Identifies suspicious shoplifting behavior with high-confidence thresholds (0.7+) for accuracy.
 
 ### 🏃 Fall Detection
-- **Model**: YOLOv4-tiny via OpenCV DNN.
+- **Model**: YOLOv8n via OpenCV DNN.
 - **Function**: Monitors human posture and triggers alerts when a fall-like orientation is detected.
 
 ### 📏 Social Distancing
-- **Model**: YOLOv4-tiny via OpenCV DNN.
+- **Model**: YOLOv8n via OpenCV DNN.
 - **Function**: Calculates Euclidean distance between individuals to flag unsafe proximity (Serious vs. Abnormal risk).
 
 ---
@@ -47,7 +47,7 @@
 | **Backend** | Python, Flask, Subprocess |
 | **AI / Computer Vision** | YOLOv8 (Ultralytics), YOLOv4-tiny, OpenCV DNN, SORT (Simple Online and Realtime Tracking) |
 | **Frontend** | HTML5, CSS3 (Vanilla), JavaScript, Jinja2 Templates |
-| **Video Processing** | `yt-dlp` (YouTube Streaming), `cvzone`, `NumPy` |
+| **Video Processing** |  `cvzone`, `NumPy` |
 | **Design** | Glassmorphism, Deep Space Dark Theme, Google Fonts (Inter/Outfit) |
 
 ---
@@ -56,7 +56,6 @@
 
 ### Prerequisites
 - **Python 3.8+**
-- **FFmpeg** (Required for YouTube streaming via `yt-dlp`)
 - **NVIDIA GPU** (Optional, but recommended for CUDA acceleration)
 
 ### Step 1: Clone the Repository
@@ -119,8 +118,7 @@ The HAIDS interface is built on the **Deep Space** design system:
 ## 📄 License & Credits
 Developed as part of the **CS719 - Data Science Project** at the University.
 
-**Contributors**:
-- Niraj-Senpai
+**Author**: Niraj
 
 *Note: This project is intended for educational and research purposes.*
 
